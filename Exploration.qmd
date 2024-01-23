@@ -1,0 +1,341 @@
+---
+title: "Wine Quality - Data Visualization"
+author: "Paria Ighanian"
+date: "2024-01-23"
+output: html_document
+
+---
+
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+## Dataset
+
+The Wine Quality dataset consists of the chemical properties of both red and white variants of Portuguese ‘Vinho Verde’ wine. It covers features such as alcohol content and acidity levels, alongside quality ratings. This dataset is commonly employed to investigate the relationships between these chemical properties and the perceived quality of the wines. For more details or to access the dataset, you can visit the UCI Machine Learning Repository at Wine Quality Dataset.
+
+## Libraries
+```{r}
+library(ggplot2)
+library(dplyr)
+library(corrplot)
+library(GGally)
+
+```
+
+## Exploring Data
+```{r}
+white_wine <- read.csv('winequality_white.csv', sep = ';')
+red_wine <- read.csv('winequality_red.csv', sep = ';')
+
+```
+
+The White Wine dataset has 4898 entries, while the Red Wine dataset has 1599 entries. To streamline analysis and leverage shared features, these datasets have been merged into a unified dataset.
+
+```{r}
+red_wine$type <- "Red"
+white_wine$type <- "White"
+
+wines <- rbind(red_wine, white_wine)
+```
+
+```{r}
+str(wines)
+```
+## Variables Distribution
+### Type
+The Type feature is a categorical variable indicating the type of wine, with possible values ‘Red’ and ‘White’.
+```{r}
+df_percentage <- (wines |>
+  group_by(type) |>
+  summarise(percentage = n() / nrow(wines) * 100))
+
+ggplot(df_percentage, aes(x = type, y=percentage, fill = type)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = sprintf("%.1f%%", percentage)),
+            position = position_stack(vjust = 0.5)) +
+
+  labs(title = "Proportion of Red and White Wine",
+       x = NULL,
+       y = "Percentage")+
+  scale_y_continuous(labels = scales::percent_format(scale = 1))+
+  theme(axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),  
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5))+
+  scale_fill_manual(values = c("Red" = "#b11226", "White" = "#EFEF26"))  
+```
+### Quality
+The Quality feature in the Wine dataset represents a discrete score between 0 and 10 assigned to each wine sample based on evaluations by wine specialists.
+
+
+
+
+
+```{r}
+total_quality_distribution <- wines |>
+  group_by(quality)|>
+  summarise(total_count = n()) |>
+  mutate(total_percentage = round(total_count / sum(total_count) * 100, 1),
+         type = "Total")  
+
+wines |>
+  group_by(type, quality) |>
+  summarise(count = n()) |>
+  mutate(percentage = round(count / sum(count) * 100, 1)) |>
+  ggplot(aes(x = as.factor(quality), y = percentage, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+  
+  geom_line(data = total_quality_distribution, aes(x = as.factor(quality), y = total_percentage, group = type, color = type), size = 1.5) +
+  
+  labs(title = "Quality Distribution",
+       x = NULL,
+       y = "Percentage") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  
+  scale_fill_manual(values = c("Red" = "#b11226", "White" = "#EFEF26")) +
+  scale_color_manual(values = c("Total" = "black")) + 
+  
+  theme(axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),  
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5)) 
+
+```
+```{r} 
+
+quality_distribution_by_type <- wines |>
+  group_by(type, quality) |>
+  summarise(count = n()) |>
+  mutate(percentage = round(count / sum(count) * 100, 1)) 
+
+
+  ggplot( quality_distribution_by_type, aes(x = as.factor(quality), y = percentage, fill = type)) +
+  geom_bar(stat = "identity", alpha = 0.7) +
+  
+  labs(title = "Quality Distribution",
+       x = NULL,
+       y = "Percentage") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  
+  scale_fill_manual(values = c("Red" = "#b11226", "White" = "#EFEF26")) +
+  theme(axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),  
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5)) +
+  
+  facet_wrap(~type, ncol=2)
+
+
+```
+```{r}
+quality_distribution_by_type
+```
+
+### Fixed Acidity
+Fixed acidity refers to acids that do not evaporate readily and are generally stable in the wine. It contributes to the overall acidity of the wine and affects its taste, balance, and stability.
+
+### Volatile Acidity
+Volatile acidity measures the amount of acetic acid in the wine. Too high levels of volatile acidity can result in an unpleasant, vinegar-like taste.
+
+### Citric Acid
+Citric acid is found in small quantities in wine. It can add freshness and enhance the flavor of wines.
+
+
+
+### Residual Sugar
+Residual Sugar indicates the amount of sugar remaining after fermentation stops. Wines with less than 1 gram/liter are rare, while wines with greater than 45 grams/liter are considered sweet.
+
+
+### Chlorides
+Chlorides quantifies the amount of salt in the wine.
+
+
+### Free Sulfur Dioxide
+The free form of SO2 exists in equilibrium between molecular SO2 (as a dissolved gas) and bisulfite ion. It prevents microbial growth and the oxidation of wine.
+
+### Total Sulfur Dioxide
+This includes both free and bound forms of SO2. In low concentrations, SO2 is generally undetectable, but when free SO2 concentrations exceed 50 ppm, its presence becomes noticeable in both the aroma and taste of the wine.
+
+
+### Density
+This feature indicates the mass per unit volume of the wine, measured in grams per cubic centimeter (g/cm³). It reflects the concentration of components like alcohol and sugar, offering insights into the wine’s overall composition.
+
+### pH
+pH describes how acidic or basic a wine is on a scale from 0 (very acidic) to 14 (very basic). Most wines are between 3-4 on the pH scale.
+
+
+### Sulphates
+A wine additive which can contribute to sulfur dioxide gas (S02) levels, wich acts as an antimicrobial and antioxidant.
+
+### Alcohol
+The percent alcohol content of the wine.
+
+
+
+```{r}
+fixed_acidity_frequency_per_type <- wines |>
+  group_by(type, `fixed.acidity`) |>
+  count()
+
+ggplot(fixed_acidity_frequency_per_type, aes(x = `fixed.acidity`, y = n, fill = type)) +
+  geom_bar(stat = "identity", position = "dodge", alpha = 0.7) +
+  labs(title = "Fixed Acidity Distribution by Type",
+       x = expression("Fixed Acidity (g/dm"^3*")"),
+       y = "Frequency") +
+  scale_fill_manual(values = c("Red" = "#b11226", "White" = "#EFEF26")) +
+  
+  theme(axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),  
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5)) 
+```
+```{r}
+ggplot(wines, aes(x = `fixed.acidity`, fill = type, color = type)) +
+  geom_density(alpha = 0.7) +
+  labs(title = "Fixed Acidity Distribution by Type",
+       x = expression("Fixed Acidity (g/dm"^3*")"),
+       y = "Density") +
+  scale_fill_manual(values = c("Red" = "#b11226", "White" = "#EFEF26")) +
+  scale_color_manual(values = c("Red" = "#b11226", "White" = "#EFEF26")) +
+  theme(axis.title.y = element_text(margin = margin(r = 10)),
+       
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5)) 
+```
+
+
+
+
+```{r}
+wines$quality <- as.factor(wines$quality)
+
+ggplot(wines, aes(x = quality, y = `fixed.acidity`, color = type)) +
+  geom_jitter(alpha = 0.7, width = 0.3) +
+  labs(title = "Fixed Acidity Distribution by Quality",
+       x = NULL,
+       y = expression("Fixed Acidity (g/dm"^3*")")) +
+  scale_color_manual(values = c("Red" = "#b11226", "White" = "#EFEF26")) +
+   theme(axis.title.y = element_text(margin = margin(r = 10)),
+        axis.text.x = element_text(size = 12),  
+        legend.position = "none",
+        plot.title = element_text(hjust = 0.5)) 
+```
+
+It is better to compare features with similar scale for box plots. 
+```{r}
+
+
+filtered_wines <- wines |>
+  select(type, volatile.acidity, citric.acid, sulphates)
+
+plot_3 <- ggplot(data = gather(filtered_wines, key = "feature", value = "value", -type),
+                 aes(x = type, y = value, fill = type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Red" = "#B94155", "White" = "#E4E06D")) +
+  facet_wrap(~ feature, scales = "free_y", ncol = 3) +
+  labs(title = NULL,
+       x = NULL,
+       y = HTML("g/dm<sup>3</sup>")) +
+  theme(legend.position = "none")
+
+ggplotly(plot_3) |> config(displayModeBar = FALSE)
+
+
+
+```
+
+
+
+```{r}
+filtered_wines <- wines |>
+  select(type, free.sulfur.dioxide, total.sulfur.dioxide)
+
+plot_3 <- ggplot(data = gather(filtered_wines, key = "feature", value = "value", -type),
+                 aes(x = type, y = value, fill = type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Red" = "#B94155", "White" = "#E4E06D")) +
+  facet_wrap(~ feature, scales = "free_y", ncol = 2) +
+  labs(title = NULL,
+       x = NULL,
+       y = HTML("g/dm<sup>3</sup>")) +
+  theme(legend.position = "none")
+
+ggplotly(plot_3) |> config(displayModeBar = FALSE)
+
+```
+
+
+```{r}
+
+
+filtered_wines <- wines |>
+  select(type, alcohol,  residual.sugar, fixed.acidity)
+
+plot_3 <- ggplot(data = gather(filtered_wines, key = "feature", value = "value", -type),
+                 aes(x = type, y = value, fill = type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Red" = "#B94155", "White" = "#E4E06D")) +
+  facet_wrap(~ feature, scales = "free_y", ncol = 3) +
+  labs(title = NULL,
+       x = NULL,
+       y = HTML("g/dm<sup>3</sup>")) +
+  theme(legend.position = "none")
+
+ggplotly(plot_3) |> config(displayModeBar = FALSE)
+
+
+
+```
+```{r}
+filtered_wines <- wines |>
+  select(type, chlorides, density, pH)
+
+plot_3 <- ggplot(data = gather(filtered_wines, key = "feature", value = "value", -type),
+                 aes(x = type, y = value, fill = type)) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("Red" = "#B94155", "White" = "#E4E06D")) +
+  facet_wrap(~ feature, scales = "free_y", ncol = 3) +
+  labs(title = NULL,
+       x = NULL,
+       y = HTML("g/dm<sup>3</sup>")) +
+  theme(legend.position = "none")
+
+ggplotly(plot_3) |> config(displayModeBar = FALSE)
+
+
+```
+
+It is evident that many features have quite a few unusual values (outliers). Removing them might lead to losing important information. However, when looking at alcohol, it seems to have a more typical pattern with fewer unusual values. 
+
+### Exploring correlations
+
+```{r}
+wines$quality <- as.numeric(as.character(wines$quality))
+
+column_order <- c("fixed.acidity", "volatile.acidity", "citric.acid", 
+                   "residual.sugar", "chlorides", "free.sulfur.dioxide", 
+                   "total.sulfur.dioxide", "density", "pH", "sulphates", 
+                   "alcohol", "quality")
+
+numeric_wines <- wines[, column_order]
+
+cor_matrix <- cor(numeric_wines)
+
+corrplot(cor_matrix, method = "color", type = "lower", tl.col = "black", tl.srt = 45)
+```
+
+### TODO
+
+- Handling Outliers
+- BOX Plots
+- Validaiting the relationship between related variables
+- Validating the impact of each variable on Quality
+
+he said about ggpairs
+and also no need for mahcine learning. try to understand why outliers are not related.
+density plot instead of bar for distribution
+
+
